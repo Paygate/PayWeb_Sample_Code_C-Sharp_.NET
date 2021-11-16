@@ -1,5 +1,5 @@
 # PayWeb_Sample_C-Sharp_.NET
-## PayGate Sample Code for C# .NET
+## PayWeb Sample Code for C# .NET
 
 This is the PayGate PayWeb3 Sample Code for C# .NET which has been provided for reference purposes only.
 
