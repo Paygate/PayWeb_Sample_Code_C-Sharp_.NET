@@ -1,0 +1,107 @@
+﻿@page
+@model PayGate_SampleCode.Pages.ResultModel
+@using System.Text.RegularExpressions;
+@using System.Text;
+@using Microsoft.Extensions.Primitives;
+@{
+    StringValues PAYGATE_ID = "10011072130";
+    StringValues PAY_REQUEST_ID = "";
+    StringValues TRANSACTION_STATUS = "";
+    StringValues REFERENCE = "";
+    StringValues CHECKSUM = "";
+    StringValues encryption_key = "secret";
+
+    if (HttpContext.Request.Method == "POST")
+    {
+        var Request = HttpContext.Request.Form;
+        Request.TryGetValue("PAY_REQUEST_ID", out PAY_REQUEST_ID);
+        Request.TryGetValue("TRANSACTION_STATUS", out TRANSACTION_STATUS);
+        Request.TryGetValue("CHECKSUM", out CHECKSUM);
+    }
+    //Insert the returned data as well as the merchant specific data PAYGATE_ID and REFERENCE
+    var data = new Dictionary<string, string>()
+{
+{"PAYGATE_ID", SessionModel.pgid ?? "" },
+{"PAY_REQUEST_ID", PAY_REQUEST_ID},
+{"TRANSACTION_STATUS", TRANSACTION_STATUS},
+{"REFERENCE", SessionModel.reference },
+{"CHECKSUM", Regex.IsMatch(CHECKSUM, @"^[A-Za-z0-9]*$") ? CHECKSUM : "INVALID CHECKSUM" },
+};
+
+    var checksum = data["CHECKSUM"];
+
+    var pg3 = new PaygatePayweb3();
+    pg3.setEncryptionKey(SessionModel.key);
+
+    //Validate returned checksum
+    var isValid = pg3.validateChecksum(data);
+
+    StringBuilder validHtml = new StringBuilder();
+    validHtml.Append(!isValid ? "The checksums do not match <i class=\"glyphicon glyphicon-remove text-danger\"></i>" : "Checksums match OK <i class=\"glyphicon glyphicon - ok text - success\"></i>");
+    var validText = Html.Raw(validHtml);
+
+    int transactionStatus;
+    Int32.TryParse(data["TRANSACTION_STATUS"], out transactionStatus);
+
+    var key = SessionModel.key;
+}
+
+<div class="container container-sm">
+    <div class="z-top">Step: Result</div>
+    <div class="z-nav login">
+        <ul class="nav nav-tabs flex-nowrap" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="result-tab" href="#result" role="tab" data-toggle="tab">
+                    Result
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="index-tab" href="index.cshtml" role="tab">Initiate</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="query-tab" href="query.cshtml" role="tab">Query</a>
+            </li>
+        </ul>
+    </div>
+    <div class="tab-content tab-content-basic">
+        <div class="tab-pane fade show active" id="result" role="tab-panel">
+            <form class="form" id="loginForm" name="query_paygate_form" asp-page="/Query" method="post">
+                <div class="z-form-group-wrapper">
+                    <div class="form-group z-formgroup d-flex">
+                        <label for="checksumResult">Checksum result</label>
+                        <p id="checksumResult" class="ml-auto">@validText</p>
+                    </div>
+                    <hr>
+                    <div class="form-group z-formgroup d-flex">
+                        <label for="PAY_REQUEST_ID">Pay Request ID</label>
+                        <p id="PAY_REQUEST_ID" class="ml-auto">@data["PAY_REQUEST_ID"]</p>
+                    </div>
+                    <div class="form-group z-formgroup d-flex">
+                        <label for="TRANSACTION_STATUS">Transaction Status</label>
+                        <p id="TRANSACTION_STATUS" class="ml-auto">@data["TRANSACTION_STATUS"] - @pg3.getTransactionStatusDescription(transactionStatus)</p>
+                    </div>
+                    <div class="form-group z-formgroup d-flex">
+                        <label for="CHECKSUM">Checksum</label>
+                        <p id="CHECKSUM" class="ml-auto">@checksum</p>
+                    </div>
+                </div>
+                <!-- Hidden fields to post to the Query service -->
+                <input type="hidden" name="PAYGATE_ID" value="@data["PAYGATE_ID"]" />
+                <input type="hidden" name="PAY_REQUEST_ID" value="@data["PAY_REQUEST_ID"]" />
+                <input type="hidden" name="REFERENCE" value="@data["REFERENCE"]" />
+                <input type="hidden" name="encryption_key" value="@key" />
+                <!-- -->
+
+                <div class="z-buttons">
+                    <input type="submit" class="btn btn-success" value="Query PayGate" name="btnSubmit">
+                    <p class="mt-5">
+                        <a asp-page="/Index" class="btn btn-success">New Transaction</a>
+                    </p>
+                    <p id="loginimageregister">
+                        <img src="~/images/PayGate_logo.svg" alt="logo" width="150px">
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
